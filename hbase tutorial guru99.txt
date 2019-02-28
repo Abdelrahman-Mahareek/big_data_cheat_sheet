@@ -1,0 +1,114 @@
+hbase shell -> open hbase shell
+
+status -> same as satus 'summary' = details about the system status like a number of servers present in the cluster, active server count, and average load value
+	status 'simple'
+	status 'detailed'
+	status 'summary'
+	
+help 
+ 
+help "command" to display help for specifc command 
+
+version -> display version 
+
+table_help -> help for table reference commands
+
+Whoami -> used to return the current HBase user information from the HBase cluster.
+
+The following are Table Management commands
+
+Create					Syntax: create <tablename>, <columnfamilyname>						create 'education' ,'guru99'
+List					Syntax:list															
+Describe				Syntax:describe '<table name>'		information about column families present in the mentioned table, description about the table , It will give information about table name with column families, associated filters, versions and some more details
+Disable					disable '<table_name>' 				disable table 
+is_enabled 				check if table is enable or not 
+Disable_all				disable all matching regex
+Enable					enable a table
+Enable_all				enable all matching regex
+Drop					drop a table 	
+Drop_all				drop all matching regex
+Show_filters			
+Alter					alter 'education', NAME=>'guru_1',METHOD=>'delete'
+						alter 'education', NAME => 'guru_1', VERSIONS => 5
+						alter 'education,{NAME=>'guru_1',IN_MEMORY=>true},{NAME=>'guru_2',VERSIONS=>5}
+Alter_status			show the regions for this table 
+******************************************************************************************************
+DATA MANIUPLATION
+*******************
+create 'guru99', {NAME=>'Edu', VERSIONS=>213423443}
+
+
+
+get_table 			Syntax: edu_ref = get_table 'education'
+							guru_ref = get_table 'guru99'
+Count				Syntax: count <'tablename'>, CACHE =>1000 ,INTERVAL=> 1000, Default cache size is 10 rows , fast when it is configured with right Cache,
+					interval used for display the result every 1000 rows 
+					cache is about how fast the process and uses memory so larger cache => memory consumption 
+					Syntax: edu_ref.count 
+	
+Put					Syntax:  put <'tablename'>,<'rowname'>,<'columnvalue'>,<'value'>
+					put 'guru99', 'r1', 'Edu:c1', 'value', 10
+					put 'guru99', 'r1', 'Edu:c1', 'value', 15
+					put 'guru99', 'r1', 'Edu:c1', 'value', 30
+					
+Get					Syntax: get <'tablename'>, <'rowname'>, {< Additional parameters>}
+					guru_ref.get 'r1'
+					guru_ref.get 'r2'
+					guru_ref.get 'r2',VERSIONS
+					get 'guru99', 'r1', {COLUMN => 'c1'}
+					get 'guru99', 'r1'
+					get 'guru99', 'r1', {TIMERANGE => [ts1, ts2]}
+					get 'guru99', 'r1', {COLUMN => ['c1', 'c2', 'c3']}
+					
+Delete				delete <'tablename'>,<'row name'>,<'column name'>	delete 'guru99', 'r1', 'c1''
+
+Delete all			deleteall <'tablename'>, <'rowname'>		deleteall 'guru99', 'r1', 'c1'
+
+Truncate			truncate <tablename>		Disables table if it already presents, drops table if it already presents, Recreates the mentioned table
+
+Scan				Syntax: scan <'tablename'>, {Optional parameters}
+					Optional parameters = TIMERANGE, FILTER, TIMESTAMP, LIMIT, MAXLENGTH, COLUMNS, CACHE, STARTROW, STOPROW
+					
+					scan '.META.', {COLUMNS => 'info:regioninfo'}		
+						It display all the meta data information related to columns that are present in the tables in HBase
+
+					scan 'guru99', {COLUMNS => ['c1', 'c2'], LIMIT => 10, STARTROW => 'xyz'}	
+						It display contents of table guru99 with their column families c1 and c2 limiting the values to 10
+
+					scan 'guru99', {COLUMNS => 'c1', TIMERANGE => [1303668804, 1303668904]} 	
+						It display contents of guru99 with its column name c1 with the values present in between the mentioned time range attribute value
+
+					scan 'guru99', {RAW => true, VERSIONS =>10}		
+						In this command RAW=> true provides advanced feature like to display all the cell values present in the table guru99
+
+						
+					create 'guru99', {NAME=>'e', VERSIONS=>2147483647}
+					put 'guru99', 'r1', 'e:c1', 'value', 10
+					put 'guru99', 'r1', 'e:c1', 'value', 12
+					put 'guru99', 'r1', 'e:c1', 'value', 14
+					delete 'guru99', 'r1', 'e:c1', 11
+					
+					Query: scan 'guru99', {RAW=>true, VERSIONS=>1000}
+					
+					
+****************************
+Cluster Replication Commands
+****************************
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			
