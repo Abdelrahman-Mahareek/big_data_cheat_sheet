@@ -1,0 +1,124 @@
+which error checking mechanism is used in hadoop and HDFS?
+	The usual way of detecting corrupted data is by computing a checksum 
+	hadoop uses CRC-32 (32-bit cyclic redundancy check)
+	while HDFS use a more efficent variant CRC-32C 
+	
+Data Integrity in HDFS
+	HDFS transparently checksums all data written to it and by default verifies checksums
+	when reading data. A separate checksum is created for every dfs.bytes-perchecksum bytes of data. The default is 512 bytes, and because a CRC-32C checksum is
+	4 bytes long, the storage overhead is less than 1%.
+
+Who is responsible for storing the checksum and verifying the data?
+What Happened if the last datanode in writing pipline detects an error in received data?	
+	Datanodes are responsible for verifying the data they receive before storing the data and
+	its checksum. This applies to data that they receive from clients and from other
+	datanodes during replication. A client writing data sends it to a pipeline of datanodes
+	(as explained in Chapter 3), and the last datanode in the pipeline verifies the checksum.
+	If the datanode detects an error, the client receives a subclass of IOException, which it
+	should handle in an application-specific manner (for example, by retrying the operation).
+	
+	Datanodes are responsible for verifying the data they receive before storing the data and
+	its checksum
+	
+do the client verify the received data from the datanode?
+what happens if the client receive the data successfully?	
+	When clients read data from datanodes, they verify checksums as well, comparing them
+	with the ones stored at the datanodes. Each datanode keeps a persistent log of checksum
+	verifications, so it knows the last time each of its blocks was verified. When a client
+	successfully verifies a block, it tells the datanode, which updates its log. Keeping statistics
+	such as these is valuable in detecting bad disks.
+
+how datanode verify all the stored blocks?
+	In addition to block verification on client reads, each datanode runs a DataBlockScan
+	ner in a background thread that periodically verifies all the blocks stored on the data
+	node. This is to guard against corruption due to “bit rot” in the physical storage media.
+	See “Datanode block scanner” on page 328 for details on how to access the scanner reports.
+	
+how HDFS can heal the corrupted data? what happened if the client received corrupted data?
+
+	Because HDFS stores replicas of blocks, it can “heal” corrupted blocks by copying one
+	of the good replicas to produce a new, uncorrupt replica. The way this works is that if
+	a client detects an error when reading a block, it reports the bad block and the datanode
+	it was trying to read from to the namenode before throwing a ChecksumException. The
+	namenode marks the block replica as corrupt so it doesn’t direct any more clients to it
+	or try to copy this replica to another datanode. It then schedules a copy of the block to
+	be replicated on another datanode, so its replication factor is back at the expected level.
+	Once this has happened, the corrupt replica is deleted.
+	
+Can we disable data verification while trying to access? what is the use of disabling the checksum verification?
+	It is possible to disable verification of checksums by passing false to the setVerify
+	Checksum() method on FileSystem before using the open() method to read a file. The
+	same effect is possible from the shell by using the -ignoreCrc option with the -get or
+	the equivalent -copyToLocal command. This feature is useful if you have a corrupt file
+	that you want to inspect so you can decide what to do with it. For example, you might
+	want to see whether it can be salvaged before you delete it.
+	
+how to compare two files on HDFS if they have the same content or not?
+	You can find a file’s checksum with hadoop fs -checksum. This is useful to check
+	whether two files in HDFS have the same contents—something that distcp does, for
+	example (see “Parallel Copying with distcp” on page 76).
+
+how does localfilesystem performs client-side checksumming?
+	The Hadoop LocalFileSystem performs client-side checksumming. This means that
+	when you write a file called filename, the filesystem client transparently creates a hidden
+	file, .filename.crc, in the same directory containing the checksums for each chunk of the
+	file. The chunk size is controlled by the file.bytes-per-checksum property, which
+	defaults to 512 bytes. The chunk size is stored as metadata in the .crc file, so the file can
+	be read back correctly even if the setting for the chunk size has changed. Checksums
+	are verified when the file is read, and if an error is detected, LocalFileSystem throws
+	a ChecksumException.
+	
+How to disable checksum validation in localfilesystem and use Rawlocalfilesystem?
+	Checksums are fairly cheap to compute (in Java, they are implemented in native code),
+	typically adding a few percent overhead to the time to read or write a file. For most
+	applications, this is an acceptable price to pay for data integrity. It is, however, possible
+	to disable checksums, which is typically done when the underlying filesystem supports
+	checksums natively. This is accomplished by using RawLocalFileSystem in place of
+	LocalFileSystem. To do this globally in an application, it suffices to remap the imple‐
+	mentation for file URIs by setting the property fs.file.impl to the value
+	org.apache.hadoop.fs.RawLocalFileSystem. Alternatively, you can directly create a
+	RawLocalFileSystem instance, which may be useful if you want to disable checksum
+	verification for only some reads, for example:
+		Configuration conf = ...
+		FileSystem fs = new RawLocalFileSystem();
+		fs.initialize(null, conf);
+		
+what happens if LocalFileSystem detects error using checksumfilesystem?
+	LocalFileSystem uses ChecksumFileSystem to do its work, and this class makes it easy
+	to add checksumming to other (nonchecksummed) filesystems, as Checksum
+	FileSystem is just a wrapper around FileSystem. The general idiom is as follows:
+		FileSystem rawFs = ...
+		FileSystem checksummedFs = new ChecksumFileSystem(rawFs);
+	The underlying filesystem is called the raw filesystem, and may be retrieved using the
+	getRawFileSystem() method on ChecksumFileSystem. ChecksumFileSystem has a few
+	more useful methods for working with checksums, such as getChecksumFile() for
+	getting the path of a checksum file for any file. Check the documentation for the others.
+	If an error is detected by ChecksumFileSystem when reading a file, it will call its
+	reportChecksumFailure() method. The default implementation does nothing, but
+	LocalFileSystem moves the offending file and its checksum to a side directory on the
+	same device called bad_files. Administrators should periodically check for these bad
+	files and take action on them.
+	
+Compare gzip,bzip2,LZO,LZ4 ans snappy?
+	Compression format 		Tool 	Algorithm 	Filename extension 		Splittable?
+	DEFLATE 				N/A 	DEFLATE 	.deflate 				No
+	gzip 					gzip 	DEFLATE 	.gz 					No
+	bzip2 					bzip2	bzip2 		.bz2					Yes
+	LZO 					lzop 	LZO 		.lzo 					No
+	LZ4 					N/A 	LZ4 		.lz4 					No
+	Snappy 					N/A 	Snappy 		.snappy 				No
+	---Space-----------------------------------middle-----------------------------------time---------
+	---bzip2-----------------------------------gzip--------------------------------LZO,LZ4,snappy----
+	Notes: 
+		bzips2 decompression is faster that compression
+		LZ4,snappy faster decompression than LZO 
+	
+	The “Splittable” column in Table 5-1 indicates whether the compression format supports
+	splitting (that is, whether you can seek to any point in the stream and start reading from
+	some point further on). Splittable compression formats are especially suitable for Map‐
+	Reduce
+
+
+	
+	
+	

@@ -1,0 +1,18 @@
+##Pig Cheat Sheet
+pig 
+pig -x 		mapreduce mode 
+pig -brief 	stop timestamps from being logged
+pig.auto.local.enabled=true	which is an optimization that runs small jobs locally if the input is less than 100 MB 
+pig.auto.local.input.maxbytes=		default 100,000,000 and no more than one reducer is being used.
+
+
+
+-- max_temp.pig: Finds the maximum temperature by year
+records = LOAD 'input/ncdc/micro-tab/sample.txt'
+AS (year:chararray, temperature:int, quality:int);
+filtered_records = FILTER records BY temperature != 9999 AND
+quality IN (0, 1, 4, 5, 9);
+grouped_records = GROUP filtered_records BY year;
+max_temp = FOREACH grouped_records GENERATE group,
+MAX(filtered_records.temperature);
+DUMP max_temp;

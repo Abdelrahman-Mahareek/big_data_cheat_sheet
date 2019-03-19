@@ -1,0 +1,27 @@
+
+CREATE TABLE widgets(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,widget_name VARCHAR(64) NOT NULL,price DECIMAL(10,2),design_date DATE,version INT,design_comment VARCHAR(100));
+INSERT INTO widgets VALUES (NULL, 'sprocket', 0.25, '2010-02-10',1, 'Connects two gizmos');
+INSERT INTO widgets VALUES (NULL, 'gizmo', 4.00, '2009-11-30', 4,NULL);
+INSERT INTO widgets VALUES (NULL, 'gadget', 99.99, '1983-08-13',13, 'Our flagship product');
+
+sqoop import --connect jdbc:mysql://localhost/hadoopguide \
+--driver com.mysql.jdbc.Driver \
+--table widgets \
+-m 1 \
+--fields-terminated-by '|' \
+--null-string 'N/A'
+
+
+
+sqoop import --connect jdbc:mysql://localhost/hadoopguide --driver com.mysql.jdbc.Driver --table widgets --fields-terminated-by '|' --null-string 'N/A' --where "widget_name = 'gizmo'"
+
+
+
+sqoop import --connect jdbc:mysql://localhost/hadoopguide --driver com.mysql.jdbc.Driver --fields-terminated-by '|' --null-string 'N/A' --query "select * from widgets"
+
+
+
+sqoop import --table accounts --where "state = 'CA'" --connect jdbc:mysql://dbhost/loudacre --username training --password training --driver com.mysql.jdbc.Driver
+
+######you cannot use query with table 
+sqoop import --query "SELECT * FROM widgets WHERE \$CONDITIONS" --connect jdbc:mysql://localhost/hadoopguide --username root --password hadoop --table widgets --driver com.mysql.jdbc.Driver

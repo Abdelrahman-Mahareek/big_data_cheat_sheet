@@ -1,0 +1,159 @@
+hive installation 
+https://www.edureka.co/blog/apache-hive-installation-on-ubuntu?utm_source=youtube&utm_campaign=hive-installation-051216-wr&utm_medium=description
+
+#hive command line 
+
+hive 					to open the hive shell
+hive -e 'show tables' 	to run query direct from shell without semicolon, for small queries 
+hive -f script.q 		to run script 
+-S 						suppress details like time consumed 
+
+CREATE TABLE records (year STRING, temperature INT, quality INT)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+
+LOAD DATA LOCAL INPATH '/home/sample.txt'
+OVERWRITE INTO TABLE records;
+	The OVERWRITE keyword in the LOAD DATA statement tells Hive to delete any existing
+	files in the directory for the table. If it is omitted, the new files are simply added to the
+	table’s directory (unless they have the same names, in which case they replace the old
+	files).
+
+
+
+DESCRIBE FORMATTED my_table;	shows the path of the saved table 
+
+
+hive> SET hive.enforce.bucketing=true; 	to configure for sepecifc session 
+hive> SET hive.enforce.bucketing;		to display the property value 
+SET -v 									to list all the properties in the system, including Hadoop defaults.
+
+
+
+Comparision with RDBMS:
+1- Schema on Read VS on Write 
+2- Updates, Transactions, and Indexes
+
+
+CREATE TABLE complex (
+c1 ARRAY<INT>,
+c2 MAP<STRING, INT>,
+c3 STRUCT<a:STRING, b:INT, c:DOUBLE>,
+c4 UNIONTYPE<STRING, INT>
+);
+
+
+
+hive> SELECT c1[0], c2['b'], c3.c, c4 FROM complex;
+1 2 1.0 {1:63}
+
+
+SHOW FUNCTIONS 		to get brief usage instructions for a particular function
+
+
+CREATE external TABLE records_ext (year STRING, tempe INT, qual INT)
+location '/apps/hive/warehouse/records'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+
+ 
+ 
+ CREATE TABLE logs (ts BIGINT, line STRING)
+PARTITIONED BY (dt STRING, country STRING);
+
+
+LOAD DATA LOCAL INPATH '/root/hadoop-book/input/hive/partitions/file1'
+INTO TABLE logs
+PARTITION (dt='2001-01-01', country='GB');
+
+
+CREATE TABLE bucketed_users (id INT, name STRING)
+CLUSTERED BY (id) SORTED BY (id ASC) INTO 4 BUCKETS;
+
+#storage format  
+CREATE TABLE ...
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\001'
+COLLECTION ITEMS TERMINATED BY '\002'
+MAP KEYS TERMINATED BY '\003'
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+
+
+
+CREATE TABLE stations (usaf STRING, wban STRING, name STRING)
+ROW FORMAT SERDE 'org.apache.hadoop.hive.contrib.serde2.RegexSerDe'
+WITH SERDEPROPERTIES (
+"input.regex" = "(\\d{6}) (\\d{5}) (.{29}) .*"
+);
+
+###importing data 
+INSERT OVERWRITE TABLE target
+SELECT col1, col2
+FROM source;
+
+#partitioned table 				Note: overwrite will replace the existing data use INSERT INTO TABLE to poplulate 
+INSERT OVERWRITE TABLE target
+PARTITION (dt='2001-01-01')
+SELECT col1, col2
+FROM source;
+
+You can specify the partition dynamically by determining the partition value from the
+SELECT statement:
+INSERT OVERWRITE TABLE target
+PARTITION (dt)
+SELECT col1, col2, dt
+FROM source;
+
+You can rename a table using the ALTER TABLE statement:
+ALTER TABLE source RENAME TO target;
+
+ALTER TABLE target ADD COLUMNS (col3 STRING);
+
+drop table my_table;							drop the data and metadata and the folder itself for managed table 
+												drop the metadata only for external table but not remove the folder itself you have to use hadoop fs -rm -r to remove the folder 
+													or dfs -rm -r 
+truncate table my_table;						drop the metadata only 
+
+
+CREATE TABLE new_table LIKE existing_table;		same structure no data 
+
+
+In some cases, you want to control which reducer a particular row goes to—typically so you can perform some subsequent aggregation. This is what Hive’s DISTRIBUTE BY
+clause does. Here’s an example to sort the weather dataset by year and temperature, in such a way as to ensure that all the rows for a given year end up in the same reducer
+partition:
+	hive> FROM records2
+	> SELECT year, temperature
+	> DISTRIBUTE BY year
+	> SORT BY year ASC, temperature DESC;
+
+
+If the columns for SORT BY and DISTRIBUTE BY are the same, you can use CLUSTER
+BY as a shorthand for specifying both.
+
+###mapreduce scripts
+hive> ADD FILE /Users/tom/book-workspace/hadoop-book/ch17-hive/
+src/main/python/is_good_quality.py;
+hive> FROM records2
+> SELECT TRANSFORM(year, temperature, quality)
+> USING 'is_good_quality.py'
+> AS year, temperature;
+
+1950 0
+1950 22
+1950 -11
+1949 111
+1949 78
+
+
+
+
+FROM (
+FROM records
+MAP year, temperature, quality
+USING 'is_good_quality.py'
+AS year, temperature) map_output
+REDUCE year, temperature
+USING 'max_temperature_reduce.py'
+AS year, temperature;
+
+1950    22
+1949    111
